@@ -11,10 +11,10 @@ class TBCNN(nn.Module):
     def __init__(self, input_size, num_classes=2, dropout=0.5):
         super().__init__()
         self.features = nn.Sequential(
-            self._block(1, 32),
+            self._block(1, 16),
+            self._block(16, 32),
             self._block(32, 64),
-            self._block(64, 128),
-            self._block(128, 128),
+            self._block(64, 64),
         )
         with torch.no_grad():
             flat = self.features(torch.zeros(1, 1, input_size, input_size)).numel()
