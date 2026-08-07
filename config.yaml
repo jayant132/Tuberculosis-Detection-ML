@@ -1,0 +1,16 @@
+data:
+  root: data/raw/TB_Chest_Radiography_Database
+
+image_size: 224
+num_workers: 2
+seed: 42
+
+split:
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+train:
+  batch_size: 32
+  lr: 0.001
+  epochs: 50
+  early_stop_patience: 8
