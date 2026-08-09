@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import average_precision_score
 
-from data_processing import get_dataloaders, load_config
+from data import get_dataloaders, load_config
 from model import build_model
 
 

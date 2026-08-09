@@ -9,7 +9,7 @@ import argparse
 import joblib
 import torch
 
-from data_processing import load_config
+from data import load_config
 from model import build_model
 
 

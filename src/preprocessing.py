@@ -43,14 +43,32 @@ def to_tensor(image):
     return torch.from_numpy(array).unsqueeze(0)
 
 
-def prepare_image(image, size, use_clahe=True, clip=1.0, tile=8):
+def random_augment(image, max_rotation=10):
+    """Random OpenCV augmentation for training: flip, rotate, jitter."""
+    if np.random.rand() < 0.5:
+        image = cv2.flip(image, 1)
+    angle = np.random.uniform(-max_rotation, max_rotation)
+    h, w = image.shape
+    matrix = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+    image = cv2.warpAffine(
+        image, matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101
+    )
+    alpha = np.random.uniform(0.9, 1.1)
+    beta = np.random.uniform(-10, 10)
+    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+    return image
+
+
+def prepare_image(image, size, use_clahe=True, clip=1.0, tile=8, augment=False):
     """Run enhance + resize + normalize on an already-loaded grayscale image."""
+    if augment:
+        image = random_augment(image)
     if use_clahe:
         image = apply_clahe(image, clip, tile)
     image = resize(image, size)
     return to_tensor(image)
 
 
-def prepare(path, size, use_clahe=True, clip=1.0, tile=8):
+def prepare(path, size, use_clahe=True, clip=1.0, tile=8, augment=False):
     """Full pipeline: load -> enhance -> resize -> tensor."""
-    return prepare_image(read_gray(path), size, use_clahe, clip, tile)
+    return prepare_image(read_gray(path), size, use_clahe, clip, tile, augment)
