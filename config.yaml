@@ -2,8 +2,13 @@ data:
   root: data/raw/TB_Chest_Radiography_Database
 
 image_size: 128
-num_workers: 2
+num_workers: 0
 seed: 42
+
+preprocess:
+  use_clahe: true
+  clahe_clip: 1.0
+  clahe_tile: 8
 
 split:
   val_ratio: 0.15

@@ -1,3 +1,9 @@
+"""Dataset loading, cleaning and splitting.
+
+Images are decoded and preprocessed by ``preprocessing.py`` (OpenCV);
+this module only worries about the metadata, the split and the loaders.
+"""
+
 import os
 from dataclasses import dataclass
 
@@ -5,9 +11,10 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
-from PIL import Image
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+
+import preprocessing as pp
 
 
 def load_config(path):
@@ -27,20 +34,12 @@ def validate_files(df, root):
     missing, corrupt = [], []
     for path in df["filename"]:
         full = os.path.join(root, path)
-        if not os.path.exists(full):
+        if not os.path.isfile(full):
             missing.append(path)
-            continue
-        try:
-            with Image.open(full) as im:
-                im.load()
-        except Exception:
+        elif not pp.is_readable(full):
             corrupt.append(path)
     bad = set(missing) | set(corrupt)
     clean = df[~df["filename"].isin(bad)].reset_index(drop=True)
-    if missing:
-        print(f"Missing files: {len(missing)}")
-    if corrupt:
-        print(f"Corrupt files: {len(corrupt)}")
     return clean, missing, corrupt
 
 
@@ -62,24 +61,26 @@ def compute_class_weights(df):
 
 
 class XRayDataset(Dataset):
-    def __init__(self, df, root, size):
+    def __init__(self, df, root, size, preprocess):
         self.df = df
         self.root = root
         self.size = size
+        self.preprocess = preprocess
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        x = self._load(os.path.join(self.root, row["filename"]))
+        path = os.path.join(self.root, row["filename"])
+        x = pp.prepare(
+            path,
+            self.size,
+            use_clahe=self.preprocess["use_clahe"],
+            clip=self.preprocess["clahe_clip"],
+            tile=self.preprocess["clahe_tile"],
+        )
         return x, int(row["label_int"])
-
-    def _load(self, path):
-        with Image.open(path) as im:
-            im = im.convert("L").resize((self.size, self.size), Image.BILINEAR)
-            arr = np.array(im, dtype=np.float32) / 255.0
-        return torch.from_numpy(arr).unsqueeze(0)
 
 
 @dataclass
@@ -103,28 +104,35 @@ def get_dataloaders(cfg):
         df, split["val_ratio"], split["test_ratio"], cfg["seed"]
     )
 
-    dataset_args = {"root": root, "size": cfg["image_size"]}
+    dataset_args = {
+        "root": root,
+        "size": cfg["image_size"],
+        "preprocess": cfg["preprocess"],
+    }
+    batch = cfg["train"]["batch_size"]
+    workers = cfg["num_workers"]
+
     train_loader = DataLoader(
         XRayDataset(train_df, **dataset_args),
-        batch_size=cfg["train"]["batch_size"],
+        batch_size=batch,
         shuffle=True,
-        num_workers=cfg["num_workers"],
+        num_workers=workers,
     )
-    eval_loader = DataLoader(
+    val_loader = DataLoader(
         XRayDataset(val_df, **dataset_args),
-        batch_size=cfg["train"]["batch_size"],
+        batch_size=batch,
         shuffle=False,
-        num_workers=cfg["num_workers"],
+        num_workers=workers,
     )
     test_loader = DataLoader(
         XRayDataset(test_df, **dataset_args),
-        batch_size=cfg["train"]["batch_size"],
+        batch_size=batch,
         shuffle=False,
-        num_workers=cfg["num_workers"],
+        num_workers=workers,
     )
 
     return DataBundle(
-        train_loader, eval_loader, test_loader,
+        train_loader, val_loader, test_loader,
         train_df, val_df, test_df,
         compute_class_weights(train_df),
     )

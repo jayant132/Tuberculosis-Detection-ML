@@ -1,3 +1,5 @@
+"""Training loop: class-weighted loss, early stopping, best checkpoint."""
+
 import argparse
 import os
 
@@ -11,7 +13,12 @@ from data_processing import get_dataloaders, load_config
 from model import build_model
 
 
+def pick_device():
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def evaluate(model, loader, criterion, device):
+    """Return (true labels, positive-class probabilities, mean loss)."""
     model.eval()
     losses, ys, probs = [], [], []
     with torch.no_grad():
@@ -27,7 +34,7 @@ def evaluate(model, loader, criterion, device):
 
 
 def train(cfg, device=None):
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    device = device or pick_device()
     torch.manual_seed(cfg["seed"])
     np.random.seed(cfg["seed"])
 
@@ -38,9 +45,8 @@ def train(cfg, device=None):
 
     os.makedirs("checkpoints", exist_ok=True)
     os.makedirs("experiments", exist_ok=True)
-    run_path = "experiments/run.csv"
-
     tcfg = cfg["train"]
+
     best_loss = float("inf")
     wait = 0
     rows = []
@@ -67,7 +73,7 @@ def train(cfg, device=None):
                 "val_pr_auc": val_pr_auc,
             }
         )
-        pd.DataFrame(rows).to_csv(run_path, index=False)
+        pd.DataFrame(rows).to_csv("experiments/run.csv", index=False)
         print(
             f"epoch {epoch:3d}  train_loss {train_loss:.4f}  "
             f"val_loss {val_loss:.4f}  val_pr_auc {val_pr_auc:.4f}"
@@ -77,11 +83,7 @@ def train(cfg, device=None):
             best_loss = val_loss
             wait = 0
             torch.save(
-                {
-                    "state_dict": model.state_dict(),
-                    "epoch": epoch,
-                    "val_loss": val_loss,
-                },
+                {"state_dict": model.state_dict(), "epoch": epoch, "val_loss": val_loss},
                 "checkpoints/best.pt",
             )
         else:

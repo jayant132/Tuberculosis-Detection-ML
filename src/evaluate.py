@@ -1,3 +1,5 @@
+"""Evaluation of a trained checkpoint across all splits."""
+
 import argparse
 
 import numpy as np
@@ -14,7 +16,7 @@ from sklearn.metrics import (
 
 from data_processing import get_dataloaders, load_config
 from model import build_model
-from train import evaluate
+from train import evaluate, pick_device
 
 
 def split_metrics(y_true, y_prob, labels=(0, 1)):
@@ -34,7 +36,7 @@ def split_metrics(y_true, y_prob, labels=(0, 1)):
 
 
 def evaluate_checkpoint(cfg, checkpoint_path, device=None):
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    device = device or pick_device()
     data = get_dataloaders(cfg)
     model = build_model(cfg).to(device)
     state = torch.load(checkpoint_path, map_location=device, weights_only=False)
