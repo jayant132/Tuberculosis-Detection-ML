@@ -55,7 +55,7 @@ def main():
     else:
         sample = st.selectbox(
             "Sample X-ray",
-            ["Normal/Normal-1.png", "Tuberculosis/Tuberculosis-1.png"],
+            ["normal/Normal-1.png", "tuberculosis/Tuberculosis-56.png"],
         )
         image = pp.read_gray(os.path.join(os.path.dirname(__file__), "data", "images", sample))
 

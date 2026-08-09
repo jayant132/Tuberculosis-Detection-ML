@@ -115,7 +115,7 @@ def get_dataloaders(cfg):
     workers = cfg["num_workers"]
 
     train_loader = DataLoader(
-        XRayDataset(train_df, **dataset_args),
+        XRayDataset(train_df, augment=True, **dataset_args),
         batch_size=batch,
         shuffle=True,
         num_workers=workers,
